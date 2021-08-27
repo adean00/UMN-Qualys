@@ -403,10 +403,7 @@ function Get-QualysScanList{
         .PARAMETER additionalOptions
             See documentation for full list of additional options and pass in as hashtable
 
-        .PARAMETER brief
-            Use this switch to get just the title and Ref for faster searching
-        
-        .PARAMETER qualysServer
+            .PARAMETER qualysServer
         FQDN of qualys server, see Qualys documentation, based on wich Qualys Platform you're in.
 
         .PARAMETER cookie
@@ -426,8 +423,6 @@ function Get-QualysScanList{
 
         [System.Collections.Hashtable]$additionalOptions,
 
-        [switch]$brief,
-
         [Parameter(Mandatory)]
         [string]$qualysServer,
 
@@ -445,21 +440,26 @@ function Get-QualysScanList{
         if($additionalOptions){$actionBody += $additionalOptions}
         [xml]$returnedXML = Invoke-RestMethod -Headers @{"X-Requested-With"="powershell"} -Uri "https://$qualysServer/api/2.0/fo/scan/" -Method Get -Body $actionBody -WebSession $cookie
         $data = $returnedXML.SCAN_LIST_OUTPUT.RESPONSE.SCAN_LIST.SCAN
-        if ($brief)
-        {
-            if($scanRef){$data.TITLE.'#cdata-section';$data.REF}
-            else
-            {
-                foreach ($n in 0..($data.Length -1)){"--------------";$data.Get($n).TITLE.'#cdata-section';$data[$n].REF}
-            }
-        }
-        else
-        {
-            if($scanRef){"`n--------------`n";"Title: " +$data.TITLE.'#cdata-section';($data | Select-Object REF,TYPE,USER_LOGIN,LAUNCH_DATETIME,DURATION,PROCESSING_PRIORITY,PROCESSED);"State: " + $data.STATUS.STATE;"Target: " + $data.TARGET.'#cdata-section'}
-            else
-            {
-                foreach ($n in 0..($data.Length -1)){"`n--------------`n";"Title: " +$data.Get($n).TITLE.'#cdata-section';($data.Get($n) | Select-Object REF,TYPE,USER_LOGIN,LAUNCH_DATETIME,DURATION,PROCESSING_PRIORITY,PROCESSED);"State: " + $data[$n].STATUS.STATE;"Target: " + $data[$n].TARGET.'#cdata-section'}
-            }
+
+            foreach ($item in $data) {
+                $hash = @{            
+                    Title = $item.Title.'#cdata-section'
+                    REF = $item.REF
+                    Type = $item.type
+                    USER_LOGIN = $item.USER_LOGIN
+                    Launch_dateTime = $item.Launch_dateTime
+                    PROCESSING_PRIORITY = $item.PROCESSING_PRIORITY
+                    Status = $item.STATUS.STATE
+                    DURATION = $item.DURATION
+                    PROCESSED = $item.PROCESSED
+                    TARGET = $item.TARGET.'#cdata-section'
+                }                           
+                                                
+            $Object = New-Object PSObject -Property $hash
+            #Add a custom typename to the object
+            $object.pstypenames.insert(0,'UMN-Qualys.ScanList')
+            $Object
+
         }
     }
     End{}

@@ -144,6 +144,83 @@ function Get-QualysReportList{
 }
 #endregion
 
+#region Get-QualysScanList
+function Get-QualysScanList{
+    <#
+        .Synopsis
+            Get list of Qualys Scans
+
+        .DESCRIPTION
+            Get list of Qualys Scans
+            
+        .PARAMETER scanRef
+            (Optional) Qualys Scan Reference, use this to get details on a specific Scan
+
+        .PARAMETER additionalOptions
+            See documentation for full list of additional options and pass in as hashtable
+
+            .PARAMETER qualysServer
+        FQDN of qualys server, see Qualys documentation, based on wich Qualys Platform you're in.
+
+        .PARAMETER cookie
+            Use Connect-Qualys to get session cookie
+
+        .EXAMPLE
+            
+
+        .EXAMPLE
+            
+    #>
+
+    [CmdletBinding()]
+    Param
+    (
+        [string]$scanRef,
+
+        [System.Collections.Hashtable]$additionalOptions,
+
+        [Parameter(Mandatory)]
+        [string]$qualysServer,
+
+        [Parameter(Mandatory)]
+        [Microsoft.PowerShell.Commands.WebRequestSession]$cookie
+    )
+
+    Begin{}
+    Process
+    {
+        ## Create URL, see API docs for path
+        #########################
+        $actionBody = @{action = "list"}
+        if($scanRef){$actionBody['scan_ref'] = $scanRef}
+        if($additionalOptions){$actionBody += $additionalOptions}
+        [xml]$returnedXML = Invoke-RestMethod -Headers @{"X-Requested-With"="powershell"} -Uri "https://$qualysServer/api/2.0/fo/scan/" -Method Get -Body $actionBody -WebSession $cookie
+        $data = $returnedXML.SCAN_LIST_OUTPUT.RESPONSE.SCAN_LIST.SCAN
+
+            foreach ($item in $data) {
+                $hash = @{            
+                    Title = $item.Title.'#cdata-section'
+                    REF = $item.REF
+                    Type = $item.type
+                    USER_LOGIN = $item.USER_LOGIN
+                    Launch_dateTime = $item.Launch_dateTime
+                    PROCESSING_PRIORITY = $item.PROCESSING_PRIORITY
+                    Status = $item.STATUS.STATE
+                    DURATION = $item.DURATION
+                    PROCESSED = $item.PROCESSED
+                    TARGET = $item.TARGET.'#cdata-section'
+                }                           
+                                                
+            $Object = New-Object PSObject -Property $hash
+            #Add a custom typename to the object
+            $object.pstypenames.insert(0,'UMN-Qualys.ReportList')
+            $Object
+
+        }
+    }
+    End{}
+}
+#endregion
 
 
 
@@ -153,4 +230,5 @@ function Get-QualysReportList{
 #$qualysCred = Get-Credential
 $qualysServer = "qualysguard.qg3.apps.qualys.com"
 $cookie = Connect-Qualys -qualysCred $qualysCred -qualysServer $qualysServer
-$t=Get-QualysReportList -qualysServer $qualysServer -cookie $cookie
+#$rlist=Get-QualysReportList -qualysServer $qualysServer -cookie $cookie
+$slist=Get-QualysScanList -qualysServer $qualysServer -cookie $cookie
