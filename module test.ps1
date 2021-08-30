@@ -275,6 +275,8 @@ function Get-QualysReport{
     
         .DESCRIPTION
             Download Qualys Report
+            File name is auto generated based on the following format:
+            (Type of report)_Report_(Title of report)_(User who created report)_(Report Launch Date 'YYYYMMDD').(Report file format)
     
         .PARAMETER id
             Report ID, use Get-QualysReportList to find the ID
@@ -312,8 +314,15 @@ function Get-QualysReport{
         Process
         {
             ### get the format type
-            $format = (Get-QualysReportList -qualysServer $qualysServer -cookie $cookie -id $id).OUTPUT_FORMAT
-            $outfile = "$outFilePath\qualysReport$ID.$format"
+            #$format = (Get-QualysReportList -qualysServer $qualysServer -cookie $cookie -id $id).OUTPUT_FORMAT
+            $format = (Get-QualysReportList -qualysServer $qualysServer -cookie $cookie -id $id)
+            $file = $format.type + "_Report_"
+            $file = $file + $format.title + "_"
+            $file = $file + $format.user_login +"_"
+            $file = $file + (get-date $format.Launch_dateTime -Format yyyymmdd) + "." + $format.output_format
+
+            #$outfile = "$outFilePath\qualysReport$ID.$format"
+            $outfile = "$outFilePath\$file"
             ## Create URL, see API docs for path  
             $null = Invoke-RestMethod -Headers @{"X-Requested-With"="powershell"} -Uri "https://$qualysServer/api/2.0/fo/report/" -Method get -Body @{action = "fetch";id = "$id"} -WebSession $cookie -OutFile $outfile
         }
@@ -393,9 +402,15 @@ $qualysServer = "qualysguard.qg3.apps.qualys.com"
 $cookie = Connect-Qualys -qualysCred $qualysCred -qualysServer $qualysServer
 #>
 
-$rlist=Get-QualysReportList -qualysServer $qualysServer -cookie $cookie
-$slist=Get-QualysScanList -qualysServer $qualysServer -cookie $cookie
-#Get-QualysReport -qualysServer $qualysServer -cookie $cookie -outFilePath c:\temp\ -id
+$qualysServer = "qualysguard.qg3.apps.qualys.com"
+$cookie = Connect-Qualys -qualysCred $qualysCred -qualysServer $qualysServer
+#$rlist=Get-QualysReportList -qualysServer $qualysServer -cookie $cookie
+#$slist=Get-QualysScanList -qualysServer $qualysServer -cookie $cookie
+### change file format to include title & date of run report
+Get-QualysReport -qualysServer $qualysServer -cookie $cookie -outFilePath c:\temp\ -id $rlist[1].id
+#$rlist | ?{$_.title -like "Executimve Remediation report - cloud agents"} | Get-QualysReport -qualysServer $qualysServer -cookie $cookie -outFilePath c:\temp\ -id $_.id
+#$rlist | ?{$_.title -like "Qualys - Weekly Agent Patch Scan - Archive (cloud agents)"} | Get-QualysReport -qualysServer $qualysServer -cookie $cookie -outFilePath c:\temp\ -id $_.id
+Disconnect-Qualys -qualysServer $qualysServer -cookie $cookie
 
 <# disconnect after testing
 Disconnect-Qualys -qualysServer $qualysServer -cookie $cookie

@@ -283,57 +283,63 @@ function Get-QualysHostAsset{
 
 #region Get-QualysReport
 function Get-QualysReport{
-<#
-    .Synopsis
-        Download Qualys Report
-
-    .DESCRIPTION
-        Download Qualys Report
-
-    .PARAMETER id
-        Report ID, use Get-QualysReportList to find the ID
-
-    .PARAMETER qualysServer
-            FQDN of qualys server, see Qualys documentation, based on wich Qualys Platform you're in.
-
-    .PARAMETER cookie
-        Use Connect-Qualys to get session cookie
-
-    .EXAMPLE
-        
-
-    .EXAMPLE
-        
-#>
-
-    [CmdletBinding()]
-    Param
-    (
-        [Parameter(Mandatory)]
-        [string]$id,
-        
-        [Parameter(Mandatory)]
-        [string]$outFilePath,
-
-        [Parameter(Mandatory)]
-        [string]$qualysServer,
-
-        [Parameter(Mandatory)]
-        [Microsoft.PowerShell.Commands.WebRequestSession]$cookie
-    )
-
-    Begin{}
-    Process
-    {
-        ### get the format type
-        $format = (Get-QualysReportList -qualysServer $qualysServer -cookie $cookie -id $id).OUTPUT_FORMAT
-        $outfile = "$outFilePath\qualysReport$ID.$format"
-        ## Create URL, see API docs for path  
-        $null = Invoke-RestMethod -Headers @{"X-Requested-With"="powershell"} -Uri "https://$qualysServer/api/2.0/fo/report/" -Method get -Body @{action = "fetch";id = "$id"} -WebSession $cookie -OutFile $outfile
+    <#
+        .Synopsis
+            Download Qualys Report
+    
+        .DESCRIPTION
+            Download Qualys Report
+            File name is auto generated based on the following format:
+            (Type of report)_Report_(Title of report)_(User who created report)_(Report Launch Date 'YYYYMMDD').(Report file format)
+    
+        .PARAMETER id
+            Report ID, use Get-QualysReportList to find the ID
+    
+        .PARAMETER qualysServer
+                FQDN of qualys server, see Qualys documentation, based on wich Qualys Platform you're in.
+    
+        .PARAMETER cookie
+            Use Connect-Qualys to get session cookie
+    
+        .EXAMPLE
+            
+    
+        .EXAMPLE
+            
+    #>
+    
+        [CmdletBinding()]
+        Param
+        (
+            [Parameter(Mandatory)]
+            [string]$id,
+            
+            [Parameter(Mandatory)]
+            [string]$outFilePath,
+    
+            [Parameter(Mandatory)]
+            [string]$qualysServer,
+    
+            [Parameter(Mandatory)]
+            [Microsoft.PowerShell.Commands.WebRequestSession]$cookie
+        )
+    
+        Begin{}
+        Process
+        {
+            ### Pull requested report info for file download
+            $format = (Get-QualysReportList -qualysServer $qualysServer -cookie $cookie -id $id)
+            $file = $format.type + "_Report_"
+            $file = $file + $format.title + "_"
+            $file = $file + $format.user_login +"_"
+            $file = $file + (get-date $format.Launch_dateTime -Format yyyymmdd) + "." + $format.output_format
+            $outfile = "$outFilePath\$file"
+            ## Create URL, see API docs for path  
+            $null = Invoke-RestMethod -Headers @{"X-Requested-With"="powershell"} -Uri "https://$qualysServer/api/2.0/fo/report/" -Method get -Body @{action = "fetch";id = "$id"} -WebSession $cookie -OutFile $outfile
+        }
+        End{return $outfile}
     }
-    End{return $outfile}
-}
-#endregion
+    #endregion
 
 #region Get-QualysReportList
 function Get-QualysReportList{
